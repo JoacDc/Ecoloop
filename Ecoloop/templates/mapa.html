@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Maps</title>
+    <!-- ✅ Forma correcta para Flask -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div id="map"></div>
+    <div id="coordenadas" style="margin: 10px; font-family: Arial; font-size: 16px;">
+        Latitud: — | Longitud: —
+        <button id="confirmarUbicacion" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out disabled:opacity-50" disabled>
+            Confirmar Nueva Ubicación
+        </button>
+    </div>
+
+    <!-- ✅ JS personalizado (opcional si lo separás en script.js) -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+    <!-- Google Maps API -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=ACA_VA_LA_API&callback=iniciarMap"></script>
+</body>
+</html>
+
