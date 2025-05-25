@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Maps</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="form-container">
+        <h2>Crear Nuevo Contenedor</h2>
+        
+        <!-- Formulario de datos -->
+        <div class="form-group">
+            <label for="nombre">Nombre del contenedor:</label>
+            <input type="text" id="nombre" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="color">Color:</label>
+            <input type="text" id="color" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="tamanio">Tamaño (m³):</label>
+            <input type="number" id="tamanio" step="0.1" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="tipoResiduo">Tipo de residuo:</label>
+            <input type="text" id="tipoResiduo" required>
+        </div>
+        
+        <!-- Mapa para selección de ubicación -->
+        <h3>Seleccione la ubicación en el mapa:</h3>
+        <div id="map" style="height: 500px; width: 100%;"></div>
+        <div id="coordenadas">
+            Latitud: — | Longitud: —
+        </div>
+        
+        <!-- Botón para enviar todo -->
+        <button id="enviarTodo" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out disabled:opacity-50" disabled>
+            Crear Contenedor
+        </button>
+    </div>
+
+    <script src="{{ url_for('static', filename='JS/script.js') }}"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD42PTKxmjYoXylhpUf2rzpMkMEfnAogI0&callback=iniciarMap"></script>
+</body>
+</html>
