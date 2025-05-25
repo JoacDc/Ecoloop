@@ -1,0 +1,46 @@
+el Proyecto se basa en el reciclaje optimo de basura. esto mediante la utilizacion de distintitos contenedores de reciclaje.
+esta version del proyecto, momentaneamente permite un pequeño CRUD de dichos de contenedores.
+
+Tencolgia a usar
+
+flask: utilizado para manejar codigo html para el uso de la pagina web
+mongo DB: utilizado para el almacen de la informacion de cada contenedor
+JavaScript: un pequeño scipt para la ejecucion de la api del google maps de los contenedores
+
+instalacion de flask
+
+pip install flask
+
+
+
+**Pasos a seguir:**
+
+1.  **Crea una NUEVA Clave API:**
+    * Ve a la [Consola de Google Cloud](https://console.cloud.google.com/).
+    * Selecciona tu proyecto.
+    * Ve a "APIs y Servicios" > "Credenciales".
+    * Crea una nueva clave API.
+    * **IMPORTANTE:** Por ahora, para asegurarte de que funcione, **NO le pongas restricciones de "Sitios web"** O, si lo haces, asegúrate de que la "Maps JavaScript API" esté permitida en las "Restricciones de API". Una vez que funcione, puedes añadir restricciones de sitios web (por ejemplo, `http://localhost:*` si pruebas localmente con un servidor, o el dominio de tu sitio web en producción).
+    * Asegúrate de que la **"Maps JavaScript API"** esté **habilitada** para tu proyecto.
+    * Verifica que la **facturación esté activa** para tu proyecto.
+
+2.  **Reemplaza la Clave API en el Código:**
+    * En la línea:
+        ```html
+        <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAiWTxvzt9Pr0cH03YpqAXR-sKfrT-Gp-s&callback=initMap&libraries=marker,places&language=es"></script>
+        ```
+        Cambia `TU_NUEVA_CLAVE_API` por la nueva clave que generaste.
+
+3.  **Verifica el Orden de los Scripts:**
+    
+
+4.  **Prueba y Revisa la Consola:**
+    * Abre el archivo HTML en tu navegador.
+    * Abre la consola del desarrollador (clic derecho > Inspeccionar > Consola).
+    * Busca el mensaje `initMap SÍ se está llamando.` y `Mapa inicializado correctamente.`.
+    * Si aún hay errores, la consola te dará pistas. El error `initMap is not a function` ya no debería aparecer si todo está en orden. Si aparece otro error, indícamelo.
+
+Con estos cambios, especialmente asegurando que `window.initMap = initMap;` se ejecute y que la clave API sea válida y esté configurada correctamente, el mapa debería cargar. Avísame cómo te 
+
+npm install tailwindcss @tailwindcss/vite
+npm install tailwindcss @tailwindcss/vite

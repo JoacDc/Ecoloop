@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Contenedores de Reciclaje</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        #map {
+            height: 70vh;
+            width: 100%;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .info-window-content {
+            padding: 8px;
+            font-size: 0.9rem;
+        }
+        .custom-marker-label {
+            color: #D32F2F;
+            font-weight: bold;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8 flex flex-col items-center min-h-screen">
+
+    <div class="w-full max-w-4xl bg-white p-6 md:p-8 rounded-lg shadow-xl">
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl font-bold text-green-600">Mapa Interactivo de Contenedores</h1>
+            <p class="text-gray-600 mt-2">Haz clic en el mapa para seleccionar una nueva ubicación o visualiza los contenedores existentes.</p>
+        </header>
+
+        <div id="map" class="mb-6"></div>
+
+        <div class="bg-gray-50 p-4 rounded-lg shadow">
+            <h2 class="text-xl font-semibold text-gray-700 mb-2">Ubicación Seleccionada</h2>
+            <p class="text-gray-600">Latitud: <span id="latitud" class="font-medium text-blue-600">-</span></p>
+            <p class="text-gray-600">Longitud: <span id="longitud" class="font-medium text-blue-600">-</span></p>
+            <button id="confirmarUbicacion" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out disabled:opacity-50" disabled>
+                Confirmar Nueva Ubicación
+            </button>
+        </div>
+
+        <div class="mt-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Contenedores Registrados</h2>
+            <div id="listaContenedores" class="space-y-3">
+                <p class="text-gray-500">Cargando contenedores...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let map;
+        let newLocationMarker;
+        let infoWindow;
+        const initialCoords = { lat: -29.165066, lng: -67.495071 }; // Buenos Aires
+        const contenedoresExistentes = [
+            { id: 'C001', lat: -34.6012, lng: -58.3899, tipo: 'Papel y Cartón', capacidad: '1000L', ultimaRecoleccion: '2025-05-15' },
+            { id: 'C002', lat: -34.6055, lng: -58.3780, tipo: 'Plástico', capacidad: '800L', ultimaRecoleccion: '2025-05-16' },
+            { id: 'C003', lat: -34.5990, lng: -58.3850, tipo: 'Vidrio', capacidad: '1200L', ultimaRecoleccion: '2025-05-14' },
+            { id: 'C004', lat: -34.6080, lng: -58.3810, tipo: 'Orgánico', capacidad: '500L', ultimaRecoleccion: '2025-05-17' }
+        ];
+
+        // Definición de la función initMap
+        // Es 'async' porque usamos 'await' adentro para cargar las librerías del mapa.
+        async function initMap() {
+            console.log("initMap SÍ se está llamando."); // Para verificar en la consola
+            try {
+                const { Map } = await google.maps.importLibrary("maps");
+                const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+
+                map = new Map(document.getElementById('map'), {
+                    center: initialCoords,
+                    zoom: 14,
+                    // mapId: 'DEMO_MAP_ID', // Puedes quitar esto si no usas Map IDs específicos
+                    disableDefaultUI: true,
+                    zoomControl: true,
+                    streetViewControl: true,
+                    fullscreenControl: true,
+                });
+
+                infoWindow = new google.maps.InfoWindow();
+
+                cargarContenedoresExistentes(AdvancedMarkerElement);
+
+                map.addListener('click', (mapsMouseEvent) => {
+                    placeNewLocationMarker(mapsMouseEvent.latLng, AdvancedMarkerElement);
+                    updateCoordinatesDisplay(mapsMouseEvent.latLng);
+                    document.getElementById('confirmarUbicacion').disabled = false;
+                });
+
+                actualizarListaContenedoresHTML();
+                console.log("Mapa inicializado correctamente.");
+
+            } catch (error) {
+                console.error("Error durante la inicialización del mapa:", error);
+                // Mostrar un mensaje al usuario en la página
+                const mapDiv = document.getElementById('map');
+                mapDiv.innerHTML = `<p style="color: red; text-align: center; padding: 20px;">Error al cargar el mapa: ${error.message}. Revisa la consola para más detalles.</p>`;
+
+            }
+        }
+        // ASEGÚRATE DE QUE initMap ESTÉ DISPONIBLE GLOBALMENTE PARA EL CALLBACK
+        window.initMap = initMap;
+
+
+        function placeNewLocationMarker(latLng, AdvancedMarkerElement) {
+            if (newLocationMarker) {
+                newLocationMarker.position = latLng;
+            } else {
+                newLocationMarker = new AdvancedMarkerElement({
+                    map: map,
+                    position: latLng,
+                    gmpDraggable: true,
+                    title: 'Nueva Ubicación Contenedor',
+                });
+                // Podrías personalizar el ícono aquí si lo deseas
+                newLocationMarker.addListener('dragend', () => {
+                    updateCoordinatesDisplay(newLocationMarker.position);
+                });
+                newLocationMarker.addListener('click', () => {
+                    infoWindow.setContent(`
+                        <div class="info-window-content">
+                            <strong>Nueva Ubicación Propuesta</strong><br>
+                            Arrastra para ajustar.
+                        </div>
+                    `);
+                    infoWindow.open(map, newLocationMarker);
+                });
+            }
+            map.panTo(latLng);
+        }
+
+        function updateCoordinatesDisplay(latLng) {
+            document.getElementById('latitud').textContent = latLng.lat().toFixed(6);
+            document.getElementById('longitud').textContent = latLng.lng().toFixed(6);
+        }
+
+        function cargarContenedoresExistentes(AdvancedMarkerElement) {
+            contenedoresExistentes.forEach(contenedor => {
+                const markerIcon = document.createElement('img');
+                markerIcon.style.width = '32px';
+                markerIcon.style.height = '32px';
+                let svgIcon = '';
+                let iconColor = '#4CAF50';
+
+                switch(contenedor.tipo.toLowerCase()) {
+                    case 'papel y cartón':
+                        svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${iconColor}" width="32px" height="32px"><path d="M0 0h24v24H0z" fill="none"/><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>`;
+                        iconColor = '#2196F3';
+                        break;
+                    case 'plástico':
+                        svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${iconColor}" width="32px" height="32px"><path d="M0 0h24v24H0z" fill="none"/><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zm2.46-9.12l1.41-1.41L12 10.59l2.12-2.12 1.41 1.41L13.41 12l2.12 2.12-1.41 1.41L12 13.41l-2.12 2.12-1.41-1.41L10.59 12l-2.13-2.12zM15.5 4l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
+                        iconColor = '#FFC107';
+                        break;
+                    case 'vidrio':
+                        svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${iconColor}" width="32px" height="32px"><path d="M0 0h24v24H0z" fill="none"/><path d="M8 2h8v2H8zm0 20h8v2H8zm3-18.69V4h2v-.69c1.43.46 2.5 1.57 2.9 3.01L18 7.38V20H6V7.38l2.1-1.06c.4-1.44 1.47-2.55 2.9-3.01zM8 8h8v10H8V8zm2 2v6h4v-6h-4z"/></svg>`;
+                        iconColor = '#00BCD4';
+                        break;
+                    case 'orgánico':
+                        svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${iconColor}" width="32px" height="32px"><path d="M0 0h24v24H0z" fill="none"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v2H7v-2.13c-.05-.26-.08-.53-.08-.8C6.92 10.15 9.85 7 13.53 7c.38 0 .75.04 1.1.11L13 9h-2v2h2.3c.05.26.08.53.08.8 0 3.3-2.69 6-6 6v.07c.01 0 .01 0 0 0zm2-7.43V10h-2V8.5c0-.28.22-.5.5-.5s.5.22.5.5V10h1.5c.28 0 .5.22.5.5s-.22.5-.5.5zm4.79-2.7L17 9.87V8h-2v2h2.13c.05-.27.07-.54.07-.81 0-1.89-1.08-3.53-2.68-4.36.19-.04.38-.07.58-.07 2.21 0 4 1.79 4 4 0 .27-.03.54-.07.8z"/></svg>`;
+                        iconColor = '#8BC34A';
+                        break;
+                    default:
+                        svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#757575" width="32px" height="32px"><path d="M0 0h24v24H0z" fill="none"/><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>`;
+                }
+                svgIcon = svgIcon.replace(/fill="[^"]*"/, `fill="${iconColor}"`);
+                markerIcon.src = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgIcon)}`;
+
+                const existingMarker = new AdvancedMarkerElement({
+                    map: map,
+                    position: { lat: contenedor.lat, lng: contenedor.lng },
+                    title: `Contenedor: ${contenedor.id} (${contenedor.tipo})`,
+                    content: markerIcon,
+                });
+                existingMarker.addListener('click', () => {
+                    const contentString = `
+                        <div class="info-window-content">
+                            <h3 class="font-semibold text-lg">${contenedor.id} - ${contenedor.tipo}</h3>
+                            <p><strong>Capacidad:</strong> ${contenedor.capacidad}</p>
+                            <p><strong>Última Recolección:</strong> ${contenedor.ultimaRecoleccion}</p>
+                            <p><strong>Coordenadas:</strong> ${contenedor.lat.toFixed(4)}, ${contenedor.lng.toFixed(4)}</p>
+                        </div>`;
+                    infoWindow.setContent(contentString);
+                    infoWindow.open(map, existingMarker);
+                });
+            });
+        }
+
+        function actualizarListaContenedoresHTML() {
+            const listaDiv = document.getElementById('listaContenedores');
+            if (!contenedoresExistentes.length) {
+                listaDiv.innerHTML = '<p class="text-gray-500">No hay contenedores registrados actualmente.</p>';
+                return;
+            }
+            listaDiv.innerHTML = '';
+            contenedoresExistentes.forEach(contenedor => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-150 cursor-pointer';
+                itemDiv.innerHTML = `
+                    <h4 class="font-semibold text-green-700">${contenedor.id} - ${contenedor.tipo}</h4>
+                    <p class="text-sm text-gray-600">Capacidad: ${contenedor.capacidad}</p>
+                    <p class="text-sm text-gray-500">Última recolección: ${contenedor.ultimaRecoleccion}</p>
+                `;
+                itemDiv.addEventListener('click', () => {
+                    const position = new google.maps.LatLng(contenedor.lat, contenedor.lng);
+                    map.panTo(position);
+                    map.setZoom(16);
+                    if (infoWindow) infoWindow.close();
+                    infoWindow.setContent(`
+                        <div class="info-window-content">
+                            <h3 class="font-semibold text-lg">${contenedor.id} - ${contenedor.tipo}</h3>
+                            <p><strong>Capacidad:</strong> ${contenedor.capacidad}</p>
+                            <p><strong>Última Recolección:</strong> ${contenedor.ultimaRecoleccion}</p>
+                        </div>`);
+                    infoWindow.setPosition(position);
+                    infoWindow.open(map);
+                });
+                listaDiv.appendChild(itemDiv);
+            });
+        }
+
+        document.getElementById('confirmarUbicacion').addEventListener('click', () => {
+            if (newLocationMarker && newLocationMarker.position) {
+                const lat = newLocationMarker.position.lat();
+                const lng = newLocationMarker.position.lng();
+                alert(`Ubicación confirmada:\nLatitud: ${lat.toFixed(6)}\nLongitud: ${lng.toFixed(6)}\n\nEstos datos se enviarían a tu backend.`);
+            } else {
+                alert('Por favor, selecciona una ubicación en el mapa primero.');
+            }
+        });
+    </script>
+
+    <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAiWTxvzt9Pr0cH03YpqAXR-sKfrT-Gp-s&callback=initMap&libraries=marker,places&language=es"></script>
+    </body>
+</html>
+```
+
